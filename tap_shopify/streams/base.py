@@ -9,8 +9,10 @@ import simplejson
 import singer
 from singer import utils
 from tap_shopify.context import Context
+import logging
 
-LOGGER = singer.get_logger()
+LOGGER = logging.getLogger('tap-shopify').setLevel(logging.ERROR)
+logging.getLogger('backoff').setLevel(logging.ERROR)
 
 RESULTS_PER_PAGE = 250
 
