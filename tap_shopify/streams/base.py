@@ -199,7 +199,7 @@ class Stream():
         backoff_log.setLevel(logging.CRITICAL)
 
         connection_log = logging.getLogger('pyactiveresource.connection')
-        connection_log.setLevel(logging.ERROR)
+        connection_log.disabled = True
         
         for obj in self.get_objects():
             yield obj.to_dict()
