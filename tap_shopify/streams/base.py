@@ -9,8 +9,13 @@ import simplejson
 import singer
 from singer import utils
 from tap_shopify.context import Context
+import logging
 
 LOGGER = singer.get_logger()
+my_logger = logging.getLogger('my_logger')
+my_handler = logging.StreamHandler()
+my_logger.addHandler(my_handler)
+my_logger.setLevel(logging.CRITICAL)
 
 RESULTS_PER_PAGE = 250
 
@@ -29,9 +34,9 @@ def is_not_status_code_fn(status_code):
         return False
     return gen_fn
 
-# def leaky_bucket_handler(details):
-    # LOGGER.info("Received 429 -- sleeping for %s seconds",
-    #             details['wait'])
+def leaky_bucket_handler(details):
+    LOGGER.info("Received 429 -- sleeping for %s seconds",
+                details['wait'])
 
 def retry_handler(details):
     LOGGER.info("Received 500 or retryable error -- Retry %s/%s",
@@ -60,9 +65,10 @@ def shopify_error_handling(fnc):
     @backoff.on_exception(retry_after_wait_gen,
                           pyactiveresource.connection.ClientError,
                           giveup=is_not_status_code_fn([429]),
-                          logger=None,
+                          on_backoff=leaky_bucket_handler,
                           # No jitter as we want a constant value
-                          jitter=None)
+                          jitter=None,
+                          logger=my_logger)
     @functools.wraps(fnc)
     def wrapper(*args, **kwargs):
         return fnc(*args, **kwargs)
