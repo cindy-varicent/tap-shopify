@@ -11,6 +11,7 @@ import singer
 import tap_shopify.streams  # Load stream objects into Context
 from singer import Catalog, Transformer, metadata, utils
 from tap_shopify.context import Context
+import logging
 
 REQUIRED_CONFIG_KEYS = ["shop", "api_key"]
 LOGGER = singer.get_logger()
@@ -159,7 +160,8 @@ def sync():
 
 @utils.handle_top_exception(LOGGER)
 def main():
-
+    connection_log = logging.getLogger('pyactiveresource.connection')
+    connection_log.setLevel(logging.ERROR)
     # Parse command line arguments
     args = utils.parse_args(REQUIRED_CONFIG_KEYS)
 
