@@ -9,10 +9,8 @@ import simplejson
 import singer
 from singer import utils
 from tap_shopify.context import Context
-import logging
 
-LOGGER = logging.getLogger('tap-shopify').setLevel(logging.ERROR)
-logging.getLogger('backoff').setLevel(logging.ERROR)
+LOGGER = singer.get_logger()
 
 RESULTS_PER_PAGE = 250
 
@@ -31,9 +29,9 @@ def is_not_status_code_fn(status_code):
         return False
     return gen_fn
 
-def leaky_bucket_handler(details):
-    LOGGER.info("Received 429 -- sleeping for %s seconds",
-                details['wait'])
+# def leaky_bucket_handler(details):
+    # LOGGER.info("Received 429 -- sleeping for %s seconds",
+    #             details['wait'])
 
 def retry_handler(details):
     LOGGER.info("Received 500 or retryable error -- Retry %s/%s",
@@ -62,7 +60,7 @@ def shopify_error_handling(fnc):
     @backoff.on_exception(retry_after_wait_gen,
                           pyactiveresource.connection.ClientError,
                           giveup=is_not_status_code_fn([429]),
-                          on_backoff=leaky_bucket_handler,
+                          logger=None,
                           # No jitter as we want a constant value
                           jitter=None)
     @functools.wraps(fnc)
