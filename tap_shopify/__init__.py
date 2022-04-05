@@ -160,8 +160,8 @@ def sync():
 
 @utils.handle_top_exception(LOGGER)
 def main():
-    connection_log = logging.getLogger('pyactiveresource.connection')
-    connection_log.disabled = True
+    # connection_log = logging.getLogger('pyactiveresource.connection')
+    # connection_log.disabled = True
     # Parse command line arguments
     args = utils.parse_args(REQUIRED_CONFIG_KEYS)
 

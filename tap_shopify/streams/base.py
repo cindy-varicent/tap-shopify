@@ -2,7 +2,7 @@ import math
 import functools
 import datetime
 import sys
-import backoff
+# import backoff
 import pyactiveresource
 import pyactiveresource.formats
 import simplejson
@@ -11,13 +11,14 @@ from singer import utils
 from tap_shopify.context import Context
 import logging
 import sys
+import time
 
-# LOGGER = singer.get_logger()
+LOGGER = singer.get_logger()
 # my_logger = logging.getLogger('my_logger')
 # my_handler = logging.StreamHandler().setLevel(logging.CRITICAL)
 # my_logger.addHandler(my_handler)
 # my_logger.setLevel(logging.CRITICAL)
-logging.getLogger("backoff").propagate = False
+# logging.getLogger("backoff").propagate = False
 RESULTS_PER_PAGE = 250
 
 # We've observed 500 errors returned if this is too large (30 days was too
@@ -55,23 +56,35 @@ def retry_after_wait_gen(**kwargs):
     sleep_time_str = resp.headers.get('Retry-After', resp.headers.get('retry-after'))
     yield math.floor(float(sleep_time_str))
 
-def shopify_error_handling(fnc):
-    @backoff.on_exception(backoff.expo,
-                          (pyactiveresource.connection.ServerError,
-                           pyactiveresource.formats.Error,
-                           simplejson.scanner.JSONDecodeError),
-                          giveup=is_not_status_code_fn(range(500, 599)),
-                          max_tries=MAX_RETRIES)
-    @backoff.on_exception(retry_after_wait_gen,
-                          pyactiveresource.connection.ClientError,
-                          giveup=is_not_status_code_fn([429]),
-                          # No jitter as we want a constant value
-                          jitter=None
-                          )
-    @functools.wraps(fnc)
-    def wrapper(*args, **kwargs):
-        return fnc(*args, **kwargs)
-    return wrapper
+def shopify_error_handling():
+    def decorator(fnc):
+        @functools.wraps(fnc)
+        def wrapped(*args, **kwargs):
+            # Shopify returns 429s when their leaky bucket rate limiting
+            # algorithm has been tripped. This will retry those
+            # indefinitely. At some point we could consider adding a
+            # max_retry configuration into this loop. So far that has
+            # proven unnecessary
+            while True:
+                try:
+                    return fnc(*args, **kwargs)
+                except pyactiveresource.connection.ClientError as client_error:
+                    # We have never seen this be anything _but_ a 429. Other
+                    # states should be consider untested.
+                    resp = client_error.response
+                    if resp.code == 429:
+                        # Retry-After is an undocumented header. But honoring
+                        # it was proven to work in our spikes.
+                        sleep_time_str = resp.headers.get('Retry-After') \
+                                         or resp.headers.get('retry-after', 2)
+                        LOGGER.info("Received 429 -- sleeping for %s seconds", sleep_time_str)
+                        time.sleep(math.floor(float(sleep_time_str)))
+                        continue
+                    else:
+                        LOGGER.error("Received a %s error.", resp.code)
+                        raise
+        return wrapped
+    return decorator
 
 class Error(Exception):
     """Base exception for the API interaction module"""
@@ -120,7 +133,7 @@ class Stream():
     # This function can be overridden by subclasses for specialized API
     # interactions. If you override it you need to remember to decorate it
     # with shopify_error_handling to get 429 and 500 handling.
-    @shopify_error_handling
+    @shopify_error_handling()
     def call_api(self, query_params):
         return self.replication_object.find(**query_params)
 
@@ -198,11 +211,11 @@ class Stream():
         This is the default implementation. Get's all of self's objects
         and calls to_dict on them with no further processing.
         """
-        backoff_log = logging.getLogger("backoff")
-        backoff_log.setLevel(logging.CRITICAL)
+        # backoff_log = logging.getLogger("backoff")
+        # backoff_log.setLevel(logging.CRITICAL)
 
-        connection_log = logging.getLogger('pyactiveresource.connection')
-        connection_log.disabled = True
+        # connection_log = logging.getLogger('pyactiveresource.connection')
+        # connection_log.disabled = True
         
         for obj in self.get_objects():
             try:
