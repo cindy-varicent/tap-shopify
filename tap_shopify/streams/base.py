@@ -10,8 +10,9 @@ import singer
 from singer import utils
 from tap_shopify.context import Context
 import logging
+import sys
 
-LOGGER = singer.get_logger()
+# LOGGER = singer.get_logger()
 # my_logger = logging.getLogger('my_logger')
 # my_handler = logging.StreamHandler().setLevel(logging.CRITICAL)
 # my_logger.addHandler(my_handler)
@@ -34,13 +35,13 @@ def is_not_status_code_fn(status_code):
         return False
     return gen_fn
 
-def leaky_bucket_handler(details):
-    LOGGER.info("Received 429 -- sleeping for %s seconds",
-                details['wait'])
+# def leaky_bucket_handler(details):
+#     LOGGER.info("Received 429 -- sleeping for %s seconds",
+#                 details['wait'])
 
-def retry_handler(details):
-    LOGGER.info("Received 500 or retryable error -- Retry %s/%s",
-                details['tries'], MAX_RETRIES)
+# def retry_handler(details):
+#     LOGGER.info("Received 500 or retryable error -- Retry %s/%s",
+#                 details['tries'], MAX_RETRIES)
 
 #pylint: disable=unused-argument
 def retry_after_wait_gen(**kwargs):
@@ -60,12 +61,10 @@ def shopify_error_handling(fnc):
                            pyactiveresource.formats.Error,
                            simplejson.scanner.JSONDecodeError),
                           giveup=is_not_status_code_fn(range(500, 599)),
-                          on_backoff=retry_handler,
                           max_tries=MAX_RETRIES)
     @backoff.on_exception(retry_after_wait_gen,
                           pyactiveresource.connection.ClientError,
                           giveup=is_not_status_code_fn([429]),
-                          on_backoff=leaky_bucket_handler,
                           # No jitter as we want a constant value
                           jitter=None
                           )
@@ -126,6 +125,7 @@ class Stream():
         return self.replication_object.find(**query_params)
 
     def get_objects(self):
+
         updated_at_min = self.get_bookmark()
 
         stop_time = singer.utils.now().replace(microsecond=0)
@@ -137,8 +137,8 @@ class Stream():
             # Bookmarking can also occur on the since_id
             since_id = self.get_since_id() or 1
 
-            if since_id != 1:
-                LOGGER.info("Resuming sync from since_id %d", since_id)
+            # if since_id != 1:
+            #     LOGGER.info("Resuming sync from since_id %d", since_id)
 
             # It's important that `updated_at_min` has microseconds
             # truncated. Why has been lost to the mists of time but we
@@ -195,5 +195,8 @@ class Stream():
         This is the default implementation. Get's all of self's objects
         and calls to_dict on them with no further processing.
         """
+        backoff_log = logging.getLogger("backoff")
+        backoff_log.setLevel(logging.CRITICAL)
+        
         for obj in self.get_objects():
             yield obj.to_dict()
