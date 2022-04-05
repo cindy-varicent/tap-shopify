@@ -11,12 +11,12 @@ from singer import utils
 from tap_shopify.context import Context
 import logging
 
-LOGGER = singer.get_logger().setLevel(logging.CRITICAL)
-my_logger = logging.getLogger('my_logger')
-my_handler = logging.StreamHandler().setLevel(logging.CRITICAL)
-my_logger.addHandler(my_handler)
-my_logger.setLevel(logging.CRITICAL)
-
+LOGGER = singer.get_logger()
+# my_logger = logging.getLogger('my_logger')
+# my_handler = logging.StreamHandler().setLevel(logging.CRITICAL)
+# my_logger.addHandler(my_handler)
+# my_logger.setLevel(logging.CRITICAL)
+logging.getLogger("backoff").propagate = False
 RESULTS_PER_PAGE = 250
 
 # We've observed 500 errors returned if this is too large (30 days was too
