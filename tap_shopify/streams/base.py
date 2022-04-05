@@ -11,9 +11,9 @@ from singer import utils
 from tap_shopify.context import Context
 import logging
 
-LOGGER = singer.get_logger()
+LOGGER = singer.get_logger().setLevel(logging.CRITICAL)
 my_logger = logging.getLogger('my_logger')
-my_handler = logging.StreamHandler()
+my_handler = logging.StreamHandler().setLevel(logging.CRITICAL)
 my_logger.addHandler(my_handler)
 my_logger.setLevel(logging.CRITICAL)
 
@@ -67,8 +67,8 @@ def shopify_error_handling(fnc):
                           giveup=is_not_status_code_fn([429]),
                           on_backoff=leaky_bucket_handler,
                           # No jitter as we want a constant value
-                          jitter=None,
-                          logger=my_logger)
+                          jitter=None
+                          )
     @functools.wraps(fnc)
     def wrapper(*args, **kwargs):
         return fnc(*args, **kwargs)
