@@ -164,7 +164,10 @@ class Stream():
                         # since_id parameter.
                         raise OutOfOrderIdsError("obj.id < since_id: {} < {}".format(
                             obj.id, since_id))
-                    yield obj
+                    try:
+                        yield obj
+                    except StopIteration:
+                        return
 
                 # You know you're at the end when the current page has
                 # less than the request size limits you set.
@@ -202,4 +205,7 @@ class Stream():
         connection_log.disabled = True
         
         for obj in self.get_objects():
-            yield obj.to_dict()
+            try:
+                yield obj.to_dict()
+            except StopIteration:
+                return
